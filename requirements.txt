@@ -1,0 +1,8 @@
+flask
+boto3
+moviepy
+opencv-python-headless
+numpy
+requests
+gunicorn
+python-dotenv

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serverless Video AI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="background-animation"></div>
+
+    <div class="container">
+        <header>
+            <h1>Serverless Video AI</h1>
+            <p>Upload a video to transcribe, translate, and detect objects.</p>
+        </header>
+
+        <div class="glass-card upload-card">
+            <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data">
+                <div class="drop-zone" id="dropZone">
+                    <span class="drop-zone__prompt">Drag & Drop video here or <span
+                            class="highlight">Browse</span></span>
+                    <input type="file" name="video" class="drop-zone__input" accept="video/*" required>
+                </div>
+                <button type="submit" class="btn-primary" id="uploadBtn">Process Video</button>
+            </form>
+
+            <div class="progress-container" id="progressContainer" style="display: none;">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <p class="status-text" id="statusText">Uploading...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const input = dropZone.querySelector('.drop-zone__input');
+
+        dropZone.addEventListener('click', () => input.click());
+
+        input.addEventListener('change', (e) => {
+            if (input.files.length) {
+                updateThumbnail(dropZone, input.files[0]);
+            }
+        });
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drop-zone--over');
+        });
+
+        ['dragleave', 'dragend'].forEach(type => {
+            dropZone.addEventListener(type, () => {
+                dropZone.classList.remove('drop-zone--over');
+            });
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            if (e.dataTransfer.files.length) {
+                input.files = e.dataTransfer.files;
+                updateThumbnail(dropZone, e.dataTransfer.files[0]);
+            }
+            dropZone.classList.remove('drop-zone--over');
+        });
+
+        function updateThumbnail(dropZone, file) {
+            let thumbnailElement = dropZone.querySelector('.drop-zone__thumb');
+
+            if (dropZone.querySelector('.drop-zone__prompt')) {
+                dropZone.querySelector('.drop-zone__prompt').remove();
+            }
+
+            if (!thumbnailElement) {
+                thumbnailElement = document.createElement('div');
+                thumbnailElement.classList.add('drop-zone__thumb');
+                dropZone.appendChild(thumbnailElement);
+            }
+
+            thumbnailElement.dataset.label = file.name;
+        }
+
+        const form = document.getElementById('uploadForm');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const progressContainer = document.getElementById('progressContainer');
+            const btn = document.getElementById('uploadBtn');
+            const statusText = document.getElementById('statusText');
+            const progressFill = document.getElementById('progressFill');
+
+            if (input.files.length > 0) {
+                const file = input.files[0];
+                progressContainer.style.display = 'block';
+                btn.disabled = true;
+                btn.innerText = 'Processing...';
+
+                try {
+                    // 1. Get Presigned URL
+                    statusText.innerText = 'Getting upload URL...';
+                    const presignRes = await fetch('/get-presigned-url', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            filename: file.name,
+                            file_type: file.type
+                        })
+                    });
+
+                    if (!presignRes.ok) throw new Error('Failed to get upload URL');
+                    const presignData = await presignRes.json();
+
+                    // 2. Upload to S3
+                    statusText.innerText = 'Uploading to S3...';
+                    const uploadRes = await fetch(presignData.url, {
+                        method: 'PUT',
+                        body: file,
+                        headers: {
+                            'Content-Type': file.type
+                        }
+                    });
+
+                    if (!uploadRes.ok) throw new Error('Failed to upload to S3');
+
+                    // 3. Trigger Processing
+                    statusText.innerText = 'Processing video (this may take a while)...';
+                    progressFill.style.width = '50%';
+
+                    const processRes = await fetch('/process-video', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            key: presignData.key,
+                            job_id: presignData.job_id,
+                            filename: presignData.filename
+                        })
+                    });
+
+                    if (!processRes.ok) {
+                        const err = await processRes.json();
+                        throw new Error(err.error || 'Processing failed');
+                    }
+
+                    // 4. Handle Result
+                    // The backend returns the rendered HTML of the result page
+                    const resultHtml = await processRes.text();
+                    document.open();
+                    document.write(resultHtml);
+                    document.close();
+
+                } catch (error) {
+                    console.error(error);
+                    statusText.innerText = 'Error: ' + error.message;
+                    statusText.style.color = 'red';
+                    btn.disabled = false;
+                    btn.innerText = 'Process Video';
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analysis Results - Serverless Video AI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="background-animation"></div>
+
+    <div class="container result-container">
+        <header>
+            <h1>Analysis Complete</h1>
+            <a href="/" class="btn-secondary">Process Another Video</a>
+        </header>
+
+        <div class="grid-layout">
+            <div class="glass-card video-card">
+                <h2>Processed Video</h2>
+                <div class="video-wrapper">
+                    <video controls width="100%" class="result-video">
+                        <source src="{{ video_url }}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+
+                <div class="download-actions">
+                    <a href="{{ video_url }}" download class="btn-primary download-btn">
+                        Download Video (.mp4)
+                    </a>
+                    <a href="{{ download_url }}" class="btn-secondary download-btn-sm">
+                        Download All (.zip)
+                    </a>
+                </div>
+
+                <h3>Detected Objects</h3>
+                <ul class="object-list">
+                    {% for obj in objects %}
+                    <li class="object-item">
+                        <span class="object-name">{{ obj.Name }}</span>
+                        <span class="object-conf">{{ "%.1f"|format(obj.Confidence) }}%</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <div class="glass-card transcript-card">
+                <h2>Transcription & Translation</h2>
+                <div class="text-comparison">
+                    <div class="text-block">
+                        <h3>Portuguese (Original)</h3>
+                        <p>{{ transcript_pt }}</p>
+                    </div>
+                    <div class="text-block">
+                        <h3>English (Translated)</h3>
+                        <p>{{ transcript_en }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
