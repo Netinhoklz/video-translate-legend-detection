@@ -22,6 +22,36 @@ The project leverages a fully serverless architecture on AWS:
     *   **Amazon Rekognition**: Object & Label Detection.
 *   **Deployment**: Automated via PowerShell script (`deploy.ps1`) using AWS CLI and Docker.
 
+## 📊 Workflow Diagram
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant WebApp as Web Interface
+    participant S3 as Amazon S3
+    participant Lambda as AWS Lambda
+    participant AI as AWS AI Services
+    
+    User->>WebApp: Uploads Video
+    WebApp->>S3: Uploads Video File
+    WebApp->>Lambda: Triggers Processing
+    activate Lambda
+    Lambda->>S3: Downloads Video
+    
+    par AI Processing
+        Lambda->>AI: Transcribe Audio (PT)
+        Lambda->>AI: Translate Text (PT -> EN)
+        Lambda->>AI: Detect Objects (Rekognition)
+    end
+    
+    Lambda->>Lambda: Overlay Subtitles & Boxes (OpenCV)
+    Lambda->>S3: Uploads Processed Video & ZIP
+    Lambda-->>WebApp: Returns Download URLs
+    deactivate Lambda
+    
+    WebApp-->>User: Displays Result & Download Links
+```
+
 ## 📂 Project Structure
 
 *   `app.py`: Main Flask application containing all logic for S3 uploads, AI job orchestration, and video processing (OpenCV/MoviePy).
