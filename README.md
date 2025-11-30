@@ -125,7 +125,6 @@ flowchart TD
 
 <div align="center">
   <img src="https://s2.senseidownload.com/Api/V1/Download/Get/5f8c11e0-1404-4daf-8f5a-523facbcaa5c/c11aa087-dc80-49be-8dfc-da9b61b35f0b/639001078881485036?preview=true" alt="Application Screenshot" width="800" style="border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-  <p><i>Upload your application screenshot here to showcase the UI</i></p>
 </div>
 
 ---
