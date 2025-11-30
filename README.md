@@ -27,10 +27,106 @@ This project demonstrates a robust implementation of **Event-Driven Architecture
 ## 🏗️ Architecture Overview
 
 The application follows a fully serverless workflow:
+
+1.  **Ingestion**: User uploads a video via the Web UI. The file is stored in **Amazon S3**.
+2.  **Orchestration**: The Flask app (running on AWS Lambda) triggers parallel AI jobs.
+3.  **AI Processing**:
+    *   **Amazon Transcribe** generates the text transcript.
+    *   **Amazon Translate** converts the text to English.
+    *   **Amazon Rekognition** scans the video for labels/objects.
+4.  **Video Processing**: The Lambda function downloads the video, uses **OpenCV** to overlay text and bounding boxes, and **FFmpeg** to merge audio.
+5.  **Delivery**: The final video and metadata are zipped and uploaded back to S3. Presigned URLs are generated for secure user download.
+
+### 📊 Workflow Diagram
+
+```mermaid
+sequenceDiagram
+    participant User as 👤 User
+    participant WebApp as 🌐 Web Interface
+    participant S3 as 📦 Amazon S3
+    participant Lambda as ⚡ AWS Lambda
+    participant AI as 🤖 AWS AI Services (Transcribe/Translate/Rekognition)
+    
+    User->>WebApp: Uploads Video
+    WebApp->>S3: Uploads Video File
+    WebApp->>Lambda: Triggers Processing
+    activate Lambda
+    Lambda->>S3: Downloads Video
+    
+    par AI Processing Pipeline
+        Lambda->>AI: Transcribe Audio (PT-BR)
+        Lambda->>AI: Translate Text (PT -> EN)
+        Lambda->>AI: Detect Objects (Rekognition)
+    end
+    
+    Lambda->>Lambda: Overlay Subtitles & Boxes (OpenCV)
+    Lambda->>Lambda: Merge Audio (FFmpeg)
+    Lambda->>S3: Uploads Processed Video & ZIP
+    Lambda-->>WebApp: Returns Download URLs
+    deactivate Lambda
+    
+    WebApp-->>User: Displays Result & Download Links
+```
+
+### 🧩 System Architecture
+
+```mermaid
+flowchart TD
+    user([👤 User])
+    
+    subgraph Frontend [Frontend]
+        ui[🌐 Web Interface]
+    end
+    
+    subgraph AWS [☁️ AWS Cloud]
+        direction TB
+        s3[📦 Amazon S3]
+        lambda[⚡ AWS Lambda]
+        
+        subgraph AI [🤖 AI Services]
+            transcribe[🗣️ Transcribe]
+            translate[A↔️文 Translate]
+            rekognition[👁️ Rekognition]
+        end
+    end
+
+    user -->|Uploads Video| ui
+    ui -->|Direct Upload| s3
+    ui -->|Triggers Processing| lambda
+    lambda <-->|Read/Write Video| s3
+    lambda -->|Async Job| transcribe
+    lambda -->|Translate Text| translate
+    lambda -->|Detect Labels| rekognition
+    
+    classDef aws fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:white;
+    classDef ai fill:#232F3E,stroke:#FF9900,stroke-width:2px,color:white;
+    class s3,lambda aws;
+    class transcribe,translate,rekognition ai;
+```
+
+---
+
+## 🛠️ Technology Stack
+
+*   **Backend Framework**: Python Flask (deployed via AWS Chalice/Lambda)
+*   **Containerization**: Docker (for packaging Lambda dependencies)
+*   **Cloud Provider**: Amazon Web Services (AWS)
+    *   **Compute**: AWS Lambda
+    *   **Storage**: Amazon S3
+    *   **AI/ML**: Transcribe, Translate, Rekognition
     *   **Registry**: Amazon ECR
 *   **Video Processing**: OpenCV (cv2), MoviePy, FFmpeg
 *   **Frontend**: HTML5, CSS3, JavaScript
 *   **CI/CD**: GitHub Actions
+
+---
+
+## 📸 Screenshots
+
+<div align="center">
+  <img src="https://via.placeholder.com/800x450?text=Application+Screenshot+Placeholder" alt="Application Screenshot" width="800" style="border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+  <p><i>Upload your application screenshot here to showcase the UI</i></p>
+</div>
 
 ---
 
