@@ -1,284 +1,239 @@
-🎥 Serverless Video AI - Plataforma Inteligente de Processamento de Vídeo
+# 🎥 Serverless Video AI - Intelligent Video Processing Platform
 
-![alt text](https://img.shields.io/badge/AWS-Serverless-orange)
+![AWS](https://img.shields.io/badge/AWS-Serverless-orange)
+![Python](https://img.shields.io/badge/Python-3.9+-blue)
+![Docker](https://img.shields.io/badge/Docker-Container-blue)
+![License](https://img.shields.io/badge/License-MIT-green)
 
+**Serverless Video AI** is a cutting-edge cloud-native application designed to automate video analysis and enhancement. Leveraging the power of **AWS Serverless** architecture, this platform ingests user-uploaded videos, automatically transcribes audio, translates it into English, detects objects within the video frames, and overlays this information as dynamic subtitles and bounding boxes.
 
-![alt text](https://img.shields.io/badge/Python-3.9+-blue)
+This project demonstrates a robust implementation of **Event-Driven Architecture**, **Computer Vision**, and **Natural Language Processing (NLP)** pipelines using managed cloud services.
 
+---
 
-![alt text](https://img.shields.io/badge/Docker-Container-blue)
+## 🚀 Key Features
 
+*   **Automatic Transcription**: Uses **Amazon Transcribe** to convert Portuguese audio into text with high accuracy.
+*   **Neural Machine Translation**: Uses **Amazon Translate** to seamlessly translate the Portuguese transcript into English.
+*   **Intelligent Object Detection**: Uses **Amazon Rekognition** to identify objects in the video that match keywords from the translated text.
+*   **Dynamic Video Overlay**: Automatically burns subtitles and draws bounding boxes around detected objects using **OpenCV**.
+*   **Smart Audio Merging**: Re-integrates the original audio with the processed video using **FFmpeg** for a complete viewing experience.
+*   **Downloadable Results**: Generates a ZIP package containing the processed video and a CSV file with the original and translated transcripts.
+*   **Serverless & Scalable**: Built on **AWS Lambda** and **Docker**, ensuring the application scales automatically with demand and incurs zero cost when idle.
+*   **Modern UI**: Features a clean, glassmorphism-inspired web interface built with **Flask** and **HTML5/CSS3**.
 
-![alt text](https://img.shields.io/badge/License-MIT-green)
+---
 
-Serverless Video AI é uma aplicação nativa da nuvem de ponta, projetada para automatizar a análise e o aprimoramento de vídeos. Aproveitando o poder da arquitetura AWS Serverless, esta plataforma ingere vídeos enviados pelo usuário, transcreve automaticamente o áudio, traduz para o inglês, detecta objetos dentro dos quadros do vídeo e sobrepõe essas informações como legendas dinâmicas e caixas delimitadoras (bounding boxes).
+## 🏗️ Architecture Overview
 
-Este projeto demonstra uma implementação robusta de pipelines de Arquitetura Orientada a Eventos, Visão Computacional e Processamento de Linguagem Natural (NLP) usando serviços gerenciados de nuvem.
+The application follows a fully serverless workflow:
 
-🚀 Principais Recursos
+1.  **Ingestion**: User uploads a video via the Web UI. The file is stored in **Amazon S3**.
+2.  **Orchestration**: The Flask app (running on AWS Lambda) triggers parallel AI jobs.
+3.  **AI Processing**:
+    *   **Amazon Transcribe** generates the text transcript.
+    *   **Amazon Translate** converts the text to English.
+    *   **Amazon Rekognition** scans the video for labels/objects.
+4.  **Video Processing**: The Lambda function downloads the video, uses **OpenCV** to overlay text and bounding boxes, and **FFmpeg** to merge audio.
+5.  **Delivery**: The final video and metadata are zipped and uploaded back to S3. Presigned URLs are generated for secure user download.
 
-Transcrição Automática: Utiliza o Amazon Transcribe para converter áudio em português para texto com alta precisão.
+### 📊 Workflow Diagram
 
-Tradução de Máquina Neural: Utiliza o Amazon Translate para traduzir perfeitamente a transcrição de português para inglês.
-
-Detecção Inteligente de Objetos: Utiliza o Amazon Rekognition para identificar objetos no vídeo que correspondem às palavras-chave do texto traduzido.
-
-Sobreposição Dinâmica de Vídeo: Grava automaticamente legendas e desenha caixas delimitadoras ao redor dos objetos detectados usando OpenCV.
-
-Fusão Inteligente de Áudio: Reintegra o áudio original ao vídeo processado usando FFmpeg para uma experiência de visualização completa.
-
-Resultados para Download: Gera um pacote ZIP contendo o vídeo processado e um arquivo CSV com as transcrições originais e traduzidas.
-
-Serverless e Escalável: Construído sobre AWS Lambda e Docker, garantindo que a aplicação escale automaticamente com a demanda e tenha custo zero quando ociosa.
-
-Interface Moderna: Apresenta uma interface web limpa, inspirada em glassmorphism, construída com Flask e HTML5/CSS3.
-
-🏗️ Visão Geral da Arquitetura
-
-A aplicação segue um fluxo de trabalho totalmente serverless:
-
-Ingestão: O usuário envia um vídeo via Interface Web. O arquivo é armazenado no Amazon S3.
-
-Orquestração: O app Flask (rodando no AWS Lambda) aciona trabalhos de IA paralelos.
-
-Processamento de IA:
-
-Amazon Transcribe gera a transcrição de texto.
-
-Amazon Translate converte o texto para inglês.
-
-Amazon Rekognition varre o vídeo em busca de rótulos/objetos.
-
-Processamento de Vídeo: A função Lambda baixa o vídeo, usa OpenCV para sobrepor texto e caixas delimitadoras, e FFmpeg para mesclar o áudio.
-
-Entrega: O vídeo final e os metadados são compactados e enviados de volta ao S3. URLs pré-assinadas são geradas para download seguro pelo usuário.
-
-📊 Diagrama de Fluxo de Trabalho
-code
-Mermaid
-download
-content_copy
-expand_less
+```mermaid
 sequenceDiagram
-    participant User as 👤 Usuário
-    participant WebApp as 🌐 Interface Web
+    participant User as 👤 User
+    participant WebApp as 🌐 Web Interface
     participant S3 as 📦 Amazon S3
     participant Lambda as ⚡ AWS Lambda
-    participant AI as 🤖 Serviços AWS AI (Transcribe/Translate/Rekognition)
+    participant AI as 🤖 AWS AI Services (Transcribe/Translate/Rekognition)
     
-    User->>WebApp: Envia Vídeo
-    WebApp->>S3: Faz Upload do Arquivo de Vídeo
-    WebApp->>Lambda: Aciona Processamento
+    User->>WebApp: Uploads Video
+    WebApp->>S3: Uploads Video File
+    WebApp->>Lambda: Triggers Processing
     activate Lambda
-    Lambda->>S3: Baixa Vídeo
+    Lambda->>S3: Downloads Video
     
-    par Pipeline de Processamento de IA
-        Lambda->>AI: Transcrever Áudio (PT-BR)
-        Lambda->>AI: Traduzir Texto (PT -> EN)
-        Lambda->>AI: Detectar Objetos (Rekognition)
+    par AI Processing Pipeline
+        Lambda->>AI: Transcribe Audio (PT-BR)
+        Lambda->>AI: Translate Text (PT -> EN)
+        Lambda->>AI: Detect Objects (Rekognition)
     end
     
-    Lambda->>Lambda: Sobrepor Legendas e Caixas (OpenCV)
-    Lambda->>Lambda: Mesclar Áudio (FFmpeg)
-    Lambda->>S3: Envia Vídeo Processado e ZIP
-    Lambda-->>WebApp: Retorna URLs de Download
+    Lambda->>Lambda: Overlay Subtitles & Boxes (OpenCV)
+    Lambda->>Lambda: Merge Audio (FFmpeg)
+    Lambda->>S3: Uploads Processed Video & ZIP
+    Lambda-->>WebApp: Returns Download URLs
     deactivate Lambda
     
-    WebApp-->>User: Exibe Resultado e Links de Download
-🧩 Arquitetura do Sistema
-code
-Mermaid
-download
-content_copy
-expand_less
+    WebApp-->>User: Displays Result & Download Links
+```
+
+### 🧩 System Architecture
+
+```mermaid
 flowchart TD
-    user([👤 Usuário])
+    user([👤 User])
     
     subgraph Frontend [Frontend]
-        ui[🌐 Interface Web]
+        ui[🌐 Web Interface]
     end
     
-    subgraph AWS [☁️ Nuvem AWS]
+    subgraph AWS [☁️ AWS Cloud]
         direction TB
         s3[📦 Amazon S3]
         lambda[⚡ AWS Lambda]
         
-        subgraph AI [🤖 Serviços de IA]
+        subgraph AI [🤖 AI Services]
             transcribe[🗣️ Transcribe]
             translate[A↔️文 Translate]
             rekognition[👁️ Rekognition]
         end
     end
 
-    user -->|Envia Vídeo| ui
-    ui -->|Upload Direto| s3
-    ui -->|Aciona Processamento| lambda
-    lambda <-->|Lê/Grava Vídeo| s3
-    lambda -->|Job Assíncrono| transcribe
-    lambda -->|Traduz Texto| translate
-    lambda -->|Detecta Rótulos| rekognition
+    user -->|Uploads Video| ui
+    ui -->|Direct Upload| s3
+    ui -->|Triggers Processing| lambda
+    lambda <-->|Read/Write Video| s3
+    lambda -->|Async Job| transcribe
+    lambda -->|Translate Text| translate
+    lambda -->|Detect Labels| rekognition
     
     classDef aws fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:white;
     classDef ai fill:#232F3E,stroke:#FF9900,stroke-width:2px,color:white;
     class s3,lambda aws;
     class transcribe,translate,rekognition ai;
-🛠️ Stack Tecnológico
+```
 
-Framework de Backend: Python Flask (implantado via AWS Chalice/Lambda)
+---
 
-Conteinerização: Docker (para empacotamento das dependências do Lambda)
+## 🛠️ Technology Stack
 
-Provedor de Nuvem: Amazon Web Services (AWS)
+*   **Backend Framework**: Python Flask (deployed via AWS Chalice/Lambda)
+*   **Containerization**: Docker (for packaging Lambda dependencies)
+*   **Cloud Provider**: Amazon Web Services (AWS)
+    *   **Compute**: AWS Lambda
+    *   **Storage**: Amazon S3
+    *   **AI/ML**: Transcribe, Translate, Rekognition
+    *   **Registry**: Amazon ECR
+*   **Video Processing**: OpenCV (cv2), MoviePy, FFmpeg
+*   **Frontend**: HTML5, CSS3, JavaScript
+*   **CI/CD**: GitHub Actions
 
-Computação: AWS Lambda
+---
 
-Armazenamento: Amazon S3
+## 📸 Screenshots
 
-IA/ML: Transcribe, Translate, Rekognition
-
-Registro: Amazon ECR
-
-Processamento de Vídeo: OpenCV (cv2), MoviePy, FFmpeg
-
-Frontend: HTML5, CSS3, JavaScript
-
-CI/CD: GitHub Actions
-
-📸 Capturas de Tela
 <div align="center">
-<img src="https://s2.senseidownload.com/Api/V1/Download/Get/5f8c11e0-1404-4daf-8f5a-523facbcaa5c/c11aa087-dc80-49be-8dfc-da9b61b35f0b/639001078881485036?preview=true" alt="Captura de Tela da Aplicação" width="800" style="border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+  <img src="https://via.placeholder.com/800x450?text=Application+Screenshot+Placeholder" alt="Application Screenshot" width="800" style="border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+  <p><i>Upload your application screenshot here to showcase the UI</i></p>
 </div>
 
-📋 Pré-requisitos
+---
 
-Antes de começar, certifique-se de ter o seguinte instalado:
+## 📋 Prerequisites
 
-Git: Para controle de versão.
+Before you begin, ensure you have the following installed:
 
-Docker Desktop: Necessário para construir a imagem do contêiner Lambda.
+*   **Git**: For version control.
+*   **Docker Desktop**: Required for building the Lambda container image.
+*   **AWS CLI**: Configured with your credentials (`aws configure`).
+*   **Python 3.9+**: For local development.
+*   **PowerShell**: For running the manual deployment script (Windows).
 
-AWS CLI: Configurado com suas credenciais (aws configure).
+---
 
-Python 3.9+: Para desenvolvimento local.
+## ⚙️ Installation & Deployment
 
-PowerShell: Para executar o script de implantação manual (Windows).
+### Option A: Automated Deployment (GitHub Actions) - **Recommended**
 
-⚙️ Instalação e Implantação
-Opção A: Implantação Automatizada (GitHub Actions) - Recomendado
+This project is configured with **GitHub Actions** for Continuous Deployment.
 
-Este projeto está configurado com GitHub Actions para Integração Contínua (CD).
+1.  **Fork/Clone** this repository.
+2.  Go to your repository **Settings** -> **Secrets and variables** -> **Actions**.
+3.  Add the following repository secrets:
+    *   `AWS_ACCESS_KEY_ID`: Your AWS Access Key.
+    *   `AWS_SECRET_ACCESS_KEY`: Your AWS Secret Key.
+    *   `S3_BUCKET`: The name of your S3 bucket (e.g., `my-video-app-bucket`).
+4.  Push any change to the `main` branch. The workflow will automatically build the Docker image, push it to ECR, and update the Lambda function.
 
-Faça o Fork/Clone deste repositório.
+### Option B: Manual Deployment (PowerShell)
 
-Vá para as Settings do seu repositório -> Secrets and variables -> Actions.
+If you prefer to deploy from your local machine:
 
-Adicione os seguintes segredos (secrets) do repositório:
+1.  **Clone the repository**:
+    ```bash
+    git clone https://github.com/Netinhoklz/video-translate-legend-detection.git
+    cd video-translate-legend-detection
+    ```
 
-AWS_ACCESS_KEY_ID: Sua Chave de Acesso AWS.
+2.  **Configure Environment**:
+    Create a `.env` file in the root directory:
+    ```env
+    AWS_ACCESS_KEY_ID=your_access_key
+    AWS_SECRET_ACCESS_KEY=your_secret_key
+    AWS_REGION=us-east-1
+    S3_BUCKET=your-s3-bucket-name
+    ```
 
-AWS_SECRET_ACCESS_KEY: Sua Chave Secreta AWS.
+3.  **Run Deployment Script**:
+    ```powershell
+    .\deploy.ps1
+    ```
+    This script will:
+    *   Authenticate with AWS.
+    *   Create/Configure the S3 Bucket (CORS).
+    *   Create the ECR Repository.
+    *   Build and Push the Docker Image.
+    *   Update the AWS Lambda Function.
 
-S3_BUCKET: O nome do seu bucket S3 (ex: meu-bucket-video-app).
+---
 
-Faça um push de qualquer alteração para a branch main. O fluxo de trabalho irá automaticamente construir a imagem Docker, enviá-la para o ECR e atualizar a função Lambda.
+## 💻 Local Development
 
-Opção B: Implantação Manual (PowerShell)
+To run the Flask application locally for testing and UI development:
 
-Se você preferir implantar a partir de sua máquina local:
+1.  **Install Dependencies**:
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-Clone o repositório:
+2.  **Set Environment Variables**:
+    Ensure your `.env` file is configured as shown above.
 
-code
-Bash
-download
-content_copy
-expand_less
-git clone https://github.com/Netinhoklz/video-translate-legend-detection.git
-cd video-translate-legend-detection
+3.  **Run the Application**:
+    ```bash
+    python app.py
+    ```
 
-Configure o Ambiente:
-Crie um arquivo .env no diretório raiz:
+4.  **Access the App**:
+    Open your browser and navigate to `http://localhost:8080`.
 
-code
-Env
-download
-content_copy
-expand_less
-AWS_ACCESS_KEY_ID=sua_access_key
-AWS_SECRET_ACCESS_KEY=sua_secret_key
-AWS_REGION=us-east-1
-S3_BUCKET=nome-do-seu-bucket-s3
+    *> **Note**: Local execution still requires valid AWS credentials to access S3 and AI services.*
 
-Execute o Script de Implantação:
+---
 
-code
-Powershell
-download
-content_copy
-expand_less
-.\deploy.ps1
+## 📂 Project Structure
 
-Este script irá:
-
-Autenticar na AWS.
-
-Criar/Configurar o Bucket S3 (CORS).
-
-Criar o Repositório ECR.
-
-Construir e enviar a Imagem Docker.
-
-Atualizar a Função AWS Lambda.
-
-💻 Desenvolvimento Local
-
-Para rodar a aplicação Flask localmente para testes e desenvolvimento da interface:
-
-Instale as Dependências:
-
-code
-Bash
-download
-content_copy
-expand_less
-pip install -r requirements.txt
-
-Defina as Variáveis de Ambiente:
-Certifique-se de que seu arquivo .env esteja configurado como mostrado acima.
-
-Execute a Aplicação:
-
-code
-Bash
-download
-content_copy
-expand_less
-python app.py
-
-Acesse o App:
-Abra seu navegador e vá para http://localhost:8080.
-
-> Nota: A execução local ainda requer credenciais AWS válidas para acessar o S3 e os serviços de IA.
-
-📂 Estrutura do Projeto
-code
-Text
-download
-content_copy
-expand_less
+```text
 .
-├── .github/workflows/   # Configurações do Pipeline CI/CD
-├── static/              # CSS e ativos estáticos
-├── templates/           # Templates HTML (Jinja2)
-├── app.py               # Aplicação Flask principal e Lógica
-├── deploy.ps1           # Script de automação de implantação manual
-├── Dockerfile.lambda    # Configuração Docker para AWS Lambda
-├── requirements.txt     # Dependências Python
-└── README.md            # Documentação do projeto
-🛡️ Licença
+├── .github/workflows/   # CI/CD Pipeline configurations
+├── static/              # CSS and static assets
+├── templates/           # HTML templates (Jinja2)
+├── app.py               # Main Flask application & Logic
+├── deploy.ps1           # Manual deployment automation script
+├── Dockerfile.lambda    # Docker configuration for AWS Lambda
+├── requirements.txt     # Python dependencies
+└── README.md            # Project documentation
+```
 
-Este projeto é open-source e está disponível sob a Licença MIT.
+---
+
+## 🛡️ License
+
+This project is open-source and available under the **MIT License**.
+
+---
 
 <p align="center">
-Feito com ❤️ por Netinho
+  Made with ❤️ by Netinho
 </p>
