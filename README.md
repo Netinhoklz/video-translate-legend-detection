@@ -1,5 +1,3 @@
-Aqui está a tradução completa para o português, mantendo a formatação Markdown, os links das imagens e os diagramas técnicos adaptados:
-
 🎥 Serverless Video AI - Plataforma Inteligente de Processamento de Vídeo
 
 ![alt text](https://img.shields.io/badge/AWS-Serverless-orange)
