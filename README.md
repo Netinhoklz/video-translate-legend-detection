@@ -27,57 +27,6 @@ This project demonstrates a robust implementation of **Event-Driven Architecture
 ## 🏗️ Architecture Overview
 
 The application follows a fully serverless workflow:
-
-1.  **Ingestion**: User uploads a video via the Web UI. The file is stored in **Amazon S3**.
-2.  **Orchestration**: The Flask app (running on AWS Lambda) triggers parallel AI jobs.
-3.  **AI Processing**:
-    *   **Amazon Transcribe** generates the text transcript.
-    *   **Amazon Translate** converts the text to English.
-    *   **Amazon Rekognition** scans the video for labels/objects.
-4.  **Video Processing**: The Lambda function downloads the video, uses **OpenCV** to overlay text and bounding boxes, and **FFmpeg** to merge audio.
-5.  **Delivery**: The final video and metadata are zipped and uploaded back to S3. Presigned URLs are generated for secure user download.
-
-### 📊 Workflow Diagram
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant WebApp as Web Interface
-    participant S3 as Amazon S3
-    participant Lambda as AWS Lambda
-    participant AI as AWS AI Services (Transcribe/Translate/Rekognition)
-    
-    User->>WebApp: Uploads Video
-    WebApp->>S3: Uploads Video File
-    WebApp->>Lambda: Triggers Processing
-    activate Lambda
-    Lambda->>S3: Downloads Video
-    
-    par AI Processing Pipeline
-        Lambda->>AI: Transcribe Audio (PT-BR)
-        Lambda->>AI: Translate Text (PT -> EN)
-        Lambda->>AI: Detect Objects (Rekognition)
-    end
-    
-    Lambda->>Lambda: Overlay Subtitles & Boxes (OpenCV)
-    Lambda->>Lambda: Merge Audio (FFmpeg)
-    Lambda->>S3: Uploads Processed Video & ZIP
-    Lambda-->>WebApp: Returns Download URLs
-    deactivate Lambda
-    
-    WebApp-->>User: Displays Result & Download Links
-```
-
----
-
-## 🛠️ Technology Stack
-
-*   **Backend Framework**: Python Flask (deployed via AWS Chalice/Lambda)
-*   **Containerization**: Docker (for packaging Lambda dependencies)
-*   **Cloud Provider**: Amazon Web Services (AWS)
-    *   **Compute**: AWS Lambda
-    *   **Storage**: Amazon S3
-    *   **AI/ML**: Transcribe, Translate, Rekognition
     *   **Registry**: Amazon ECR
 *   **Video Processing**: OpenCV (cv2), MoviePy, FFmpeg
 *   **Frontend**: HTML5, CSS3, JavaScript
