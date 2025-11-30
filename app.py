@@ -7,12 +7,14 @@ import boto3
 import cv2
 import requests
 import numpy as np
-from flask import Flask, render_template, request, jsonify, send_file, send_from_directory, url_for
+from chalice import Chalice, Response
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 from werkzeug.utils import secure_filename
 import logging
 import zipfile
 from dotenv import load_dotenv
 from moviepy import VideoFileClip, AudioFileClip
+import subprocess
 
 # Load environment variables from .env file
 load_dotenv()
@@ -21,7 +23,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
+app = Chalice(app_name='video-processor')
 
 # Configuration
 S3_BUCKET = os.environ.get("S3_BUCKET", "your-bucket-name")
@@ -42,24 +44,61 @@ else:
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+# Template Engine Setup
+template_loader = FileSystemLoader(searchpath="./templates")
+template_env = Environment(
+    loader=template_loader,
+    autoescape=select_autoescape(['html', 'xml'])
+)
+
+def render_template(template_name, **kwargs):
+    try:
+        template = template_env.get_template(template_name)
+        return template.render(**kwargs)
+    except Exception as e:
+        logger.error(f"Error rendering template {template_name}: {e}")
+        return str(e)
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return Response(body=render_template('index.html'),
+                    status_code=200,
+                    headers={'Content-Type': 'text/html'})
 
-@app.route('/uploads/<filename>')
+@app.route('/uploads/{filename}')
 def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    # In a real serverless app, you should serve these from S3.
+    # This is a fallback for the current logic.
+    file_path = os.path.join(UPLOAD_FOLDER, filename)
+    if os.path.exists(file_path):
+        with open(file_path, 'rb') as f:
+            content = f.read()
+        
+        # Determine content type (basic)
+        content_type = 'application/octet-stream'
+        if filename.endswith('.mp4'):
+            content_type = 'video/mp4'
+        elif filename.endswith('.zip'):
+            content_type = 'application/zip'
+        elif filename.endswith('.csv'):
+            content_type = 'text/csv'
+            
+        return Response(body=content,
+                        status_code=200,
+                        headers={'Content-Type': content_type})
+    else:
+        return Response(body='File not found', status_code=404)
 
 @app.route('/get-presigned-url', methods=['POST'])
 def get_presigned_url():
     try:
-        filename = request.json.get('filename')
-        file_type = request.json.get('file_type')
+        request = app.current_request
+        data = request.json_body
+        filename = data.get('filename')
+        file_type = data.get('file_type')
         
         if not filename:
-            return jsonify({'error': 'Filename is required'}), 400
+            return Response(body={'error': 'Filename is required'}, status_code=400)
 
         job_id = str(uuid.uuid4())
         s3_key = f"uploads/{job_id}_{secure_filename(filename)}"
@@ -74,31 +113,32 @@ def get_presigned_url():
             ExpiresIn=3600
         )
         
-        return jsonify({
+        return {
             'url': presigned_url,
             'key': s3_key,
             'job_id': job_id,
             'filename': secure_filename(filename)
-        })
+        }
     except Exception as e:
         logger.error(f"Error generating presigned URL: {e}")
-        return jsonify({'error': str(e)}), 500
+        return Response(body={'error': str(e)}, status_code=500)
 
 @app.route('/process-video', methods=['POST'])
 def process_video():
     try:
-        data = request.json
+        request = app.current_request
+        data = request.json_body
         s3_key = data.get('key')
         job_id = data.get('job_id')
         filename = data.get('filename')
         
         if not s3_key or not job_id or not filename:
-            return jsonify({'error': 'Missing required parameters'}), 400
+            return Response(body={'error': 'Missing required parameters'}, status_code=400)
 
         logger.info(f"Processing video from S3: {s3_key}")
         
         # Download video from S3 to local temp for processing
-        input_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{job_id}_{filename}")
+        input_path = os.path.join(UPLOAD_FOLDER, f"{job_id}_{filename}")
         logger.info(f"Downloading to: {input_path}")
         s3_client.download_file(S3_BUCKET, s3_key, input_path)
 
@@ -196,38 +236,38 @@ def process_video():
         logger.info(f"Filtered labels: {[l['Label']['Name'] for l in labels]}")
 
         # 6. Process Video (Overlay)
-        temp_video_path = os.path.join(app.config['UPLOAD_FOLDER'], f"temp_{job_id}_{filename}")
-        output_path = os.path.join(app.config['UPLOAD_FOLDER'], f"processed_{job_id}_{filename}")
+        temp_video_path = os.path.join(UPLOAD_FOLDER, f"temp_{job_id}_{filename}")
+        output_path = os.path.join(UPLOAD_FOLDER, f"processed_{job_id}_{filename}")
         
         # Process video frames (silent)
         process_video_overlay(input_path, temp_video_path, translated_text, labels)
         
-        # Add Audio back to the video
-        video_clip = None
-        original_audio = None
-        final_clip = None
+        # Add Audio back to the video using ffmpeg directly
         try:
-            logger.info("Merging audio...")
-            video_clip = VideoFileClip(temp_video_path)
-            original_audio = AudioFileClip(input_path)
-            # MoviePy v2 uses with_audio instead of set_audio
-            final_clip = video_clip.with_audio(original_audio)
-            final_clip.write_videofile(output_path, codec='libx264', audio_codec='aac')
+            logger.info("Merging audio with ffmpeg...")
             
+            # ffmpeg command: Re-encode to ensure compatibility
+            # We re-encode video to H.264 (libx264) and audio to AAC to ensure standard format
+            subprocess.run([
+                'ffmpeg', '-y',
+                '-i', temp_video_path,
+                '-i', input_path,
+                '-c:v', 'libx264',  # Re-encode video to H.264
+                '-c:a', 'aac',      # Re-encode audio to AAC
+                '-map', '0:v:0',
+                '-map', '1:a:0',
+                '-pix_fmt', 'yuv420p', # Ensure compatible pixel format for players
+                '-shortest',
+                output_path
+            ], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            
+            logger.info("Audio merge successful.")
+            
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Error merging audio with ffmpeg: {e.stderr.decode()}")
+            # Fallback handled below
         except Exception as e:
-            logger.error(f"Error merging audio: {e}")
-            # We will handle fallback after ensuring resources are closed
-        finally:
-            # Close clips to release resources explicitly
-            if video_clip: 
-                try: video_clip.close()
-                except: pass
-            if original_audio: 
-                try: original_audio.close()
-                except: pass
-            if final_clip: 
-                try: final_clip.close()
-                except: pass
+            logger.error(f"Unexpected error merging audio: {e}")
 
         # Give OS time to release file locks (crucial for Windows)
         time.sleep(1)
@@ -253,14 +293,14 @@ def process_video():
 
         # 7. Create ZIP bundle with Video and Transcript
         csv_filename = f"transcript_{job_id}.csv"
-        csv_path = os.path.join(app.config['UPLOAD_FOLDER'], csv_filename)
+        csv_path = os.path.join(UPLOAD_FOLDER, csv_filename)
         with open(csv_path, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             writer.writerow(["Portuguese", "English"])
             writer.writerow([transcript_text, translated_text])
         
         zip_filename = f"result_{job_id}.zip"
-        zip_path = os.path.join(app.config['UPLOAD_FOLDER'], zip_filename)
+        zip_path = os.path.join(UPLOAD_FOLDER, zip_filename)
         with zipfile.ZipFile(zip_path, 'w') as zipf:
             zipf.write(output_path, os.path.basename(output_path))
             zipf.write(csv_path, csv_filename)
@@ -268,7 +308,15 @@ def process_video():
         # Upload processed video to S3
         processed_s3_key = f"processed/{job_id}_{filename}"
         logger.info(f"Uploading processed video to S3: {processed_s3_key}")
-        s3_client.upload_file(output_path, S3_BUCKET, processed_s3_key, ExtraArgs={'ContentType': 'video/mp4'})
+        s3_client.upload_file(
+            output_path, 
+            S3_BUCKET, 
+            processed_s3_key, 
+            ExtraArgs={
+                'ContentType': 'video/mp4',
+                'ContentDisposition': 'inline'
+            }
+        )
 
         # Upload ZIP to S3
         zip_s3_key = f"processed/{zip_filename}"
@@ -310,16 +358,24 @@ def process_video():
         # Return JSON with redirect URL or HTML content
         # Since we are using AJAX, we should probably return JSON and let frontend redirect
         # But to keep it simple and reuse the template, we can render it and return the HTML
-        return render_template('result.html', 
+        return Response(body=render_template('result.html', 
                                video_url=local_video_url, 
                                download_url=local_zip_url,
                                transcript_pt=transcript_text, 
                                transcript_en=translated_text,
-                               objects=display_objects)
+                               objects=display_objects,
+                               version="v3.0"),
+                        status_code=200,
+                        headers={
+                            'Content-Type': 'text/html',
+                            'Cache-Control': 'no-cache, no-store, must-revalidate',
+                            'Pragma': 'no-cache',
+                            'Expires': '0'
+                        })
 
     except Exception as e:
         logger.error(f"Error processing video: {str(e)}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return Response(body={'error': str(e)}, status_code=500)
 
 def process_video_overlay(input_path, output_path, subtitle_text, labels):
     cap = cv2.VideoCapture(input_path)
@@ -401,6 +457,5 @@ def process_video_overlay(input_path, output_path, subtitle_text, labels):
     out.release()
 
 if __name__ == '__main__':
-    # Disable debug mode in Lambda to avoid reloader issues
-    debug_mode = not os.environ.get('AWS_LAMBDA_FUNCTION_NAME')
-    app.run(debug=debug_mode, host='0.0.0.0', port=8080)
+    print("Starting Chalice Local Server...")
+    os.system("chalice local")
